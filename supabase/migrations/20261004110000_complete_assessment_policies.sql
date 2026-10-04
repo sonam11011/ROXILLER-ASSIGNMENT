@@ -7,7 +7,7 @@
 -- Enforce the required full-name length for new and edited profiles.
 ALTER TABLE public.profiles DROP CONSTRAINT IF EXISTS profiles_full_name_check;
 ALTER TABLE public.profiles
-  ADD CONSTRAINT profiles_full_name_check CHECK (char_length(full_name) BETWEEN 20 AND 60);
+  ADD CONSTRAINT profiles_full_name_check CHECK (char_length(full_name) BETWEEN 20 AND 60) NOT VALID;
 
 -- Keep trigger-generated profiles valid if an account is created without metadata.
 CREATE OR REPLACE FUNCTION public.handle_new_user()
