@@ -68,8 +68,8 @@ npm install
 
 Create `frontend/.env` from `.env.example`:
 ```env
-VITE_SUPABASE_URL=https://YOUR_PROJECT.supabase.co
-VITE_SUPABASE_ANON_KEY=YOUR_PUBLIC_ANON_KEY
+VITE_SUPABASE_URL=https://ctdlqbkvxspdcijsmaoi.supabase.co
+VITE_SUPABASE_ANON_KEY=YOUR_PUBLIC_ANON_OR_PUBLISHABLE_KEY
 VITE_API_URL=http://localhost:4000/api
 ```
 
@@ -80,3 +80,16 @@ npm run dev
 
 ## Security
 Never put the Supabase service-role key in the frontend or commit it to GitHub. It belongs only in `backend/.env`. The browser uses the public anon key for authentication and sends its access token to the Express API.
+
+## Current Supabase data
+The connected project contains three real store records and no fabricated ratings. User and owner accounts should be created through Supabase Auth or the admin UI so passwords are handled by Supabase Auth rather than stored in SQL.
+
+## Submission checklist
+1. Start the backend on port 4000.
+2. Start the frontend on port 5173.
+3. Create/promote the first admin account.
+4. From the admin workspace, create normal users, store owners and additional admins.
+5. Add/assign stores to owners.
+6. Sign in as a normal user and submit/update ratings.
+7. Sign in as a store owner and verify received ratings/average.
+8. Never commit `.env` or the Supabase service-role key.
