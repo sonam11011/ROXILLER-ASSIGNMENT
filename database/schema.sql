@@ -57,16 +57,17 @@ $$;
 
 create trigger on_auth_user_created
 after insert on auth.users for each row execute function public.handle_new_user();
+revoke execute on function public.handle_new_user() from public, anon, authenticated;
 
 alter table public.profiles enable row level security;
 alter table public.stores enable row level security;
 alter table public.ratings enable row level security;
 
 drop policy if exists profiles_self_read on public.profiles;
-create policy profiles_self_read on public.profiles for select to authenticated using(id=auth.uid());
+create policy profiles_self_read on public.profiles for select to authenticated using((select auth.uid())=id);
 
 drop policy if exists profiles_self_update on public.profiles;
-create policy profiles_self_update on public.profiles for update to authenticated using(id=auth.uid()) with check(id=auth.uid());
+create policy profiles_self_update on public.profiles for update to authenticated using(id=auth.uid()) with check((select auth.uid())=id);
 
 drop policy if exists stores_authenticated_read on public.stores;
 create policy stores_authenticated_read on public.stores for select to authenticated using(true);
@@ -75,10 +76,10 @@ drop policy if exists ratings_authenticated_read on public.ratings;
 create policy ratings_authenticated_read on public.ratings for select to authenticated using(true);
 
 drop policy if exists ratings_own_insert on public.ratings;
-create policy ratings_own_insert on public.ratings for insert to authenticated with check(user_id=auth.uid());
+create policy ratings_own_insert on public.ratings for insert to authenticated with check(user_id=(select auth.uid()));
 
 drop policy if exists ratings_own_update on public.ratings;
-create policy ratings_own_update on public.ratings for update to authenticated using(user_id=auth.uid()) with check(user_id=auth.uid());
+create policy ratings_own_update on public.ratings for update to authenticated using(user_id=(select auth.uid())) with check(user_id=auth.uid());
 
 drop policy if exists ratings_own_delete on public.ratings;
 create policy ratings_own_delete on public.ratings for delete to authenticated using(user_id=auth.uid());
