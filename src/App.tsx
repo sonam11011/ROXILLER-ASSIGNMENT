@@ -129,7 +129,9 @@ function App() {
       <main className="main-content">
         <header className="topbar"><button className="mobile-menu" onClick={() => setMenuOpen(true)} aria-label="Open menu"><Menu size={21} /></button><div className="breadcrumb">Workspace <span>/</span> {view === 'overview' ? 'Overview' : view === 'stores' ? 'Store directory' : view === 'users' ? 'People' : 'My account'}</div><div className="topbar-role"><span className="status-dot" /> {roleCopy[profile.role]} <ChevronDown size={15} /></div></header>
         {error && <div className="alert error-alert"><X size={17} /> {error}<button onClick={() => setError('')}><X size={15} /></button></div>}
-        {view === 'overview' && <Overview profile={profile} stores={stores} ratings={ratings} onBrowse={() => setView('stores')} onRefresh={refreshData} loading={dataLoading} />}
+        {view === 'overview' && (profile.role === 'owner'
+          ? <OwnerOverview profile={profile} stores={stores.filter((store) => store.owner_id === profile.id)} ratings={ratings} onRefresh={refreshData} loading={dataLoading} />
+          : <Overview profile={profile} stores={stores} ratings={ratings} onBrowse={() => setView('stores')} onRefresh={refreshData} loading={dataLoading} />)}
         {view === 'stores' && <StoreDirectory profile={profile} stores={stores} ratings={ratings} onRefresh={refreshData} onError={setError} />}
         {view === 'users' && profile.role === 'admin' && <PeopleView />}
         {view === 'account' && <AccountView profile={profile} onSaved={setProfile} onError={setError} />}
@@ -186,6 +188,41 @@ function Overview({ profile, stores, ratings, onBrowse, onRefresh, loading }: { 
   const myRatings = ratings.filter((rating) => rating.user_id === profile.id);
   const topStores = stores.map((store) => ({ store, ratings: ratings.filter((rating) => rating.store_id === store.id) })).sort((a, b) => averageFor(b.ratings) - averageFor(a.ratings)).slice(0, 3);
   return <div className="page"><div className="page-heading"><div><p className="eyebrow">Good morning, {profile.full_name.split(' ')[0]}</p><h1>Your rating workspace</h1><p className="muted">A clear view of the places and people that shape your neighborhood.</p></div><button className="quiet-button" onClick={onRefresh} disabled={loading}>Refresh data</button></div><div className="stat-grid"><StatCard icon={<Store size={19} />} label="Stores listed" value={stores.length.toString()} detail="Across your directory" accent="green" /><StatCard icon={<Star size={19} />} label="Ratings shared" value={myRatings.length.toString()} detail={profile.role === 'user' ? 'Your contributions' : `${ratings.length} total platform ratings`} accent="amber" /><StatCard icon={<TrendingUp size={19} />} label="Platform average" value={average ? average.toFixed(1) : '—'} detail="Out of 5.0 stars" accent="blue" /></div><div className="content-grid"><section className="panel feature-panel"><div className="panel-header"><div><p className="eyebrow">Explore the directory</p><h2>Find somewhere worth returning to</h2></div><button className="text-button" onClick={onBrowse}>View all <ArrowRight size={15} /></button></div><div className="top-store-list">{topStores.map(({ store, ratings: storeRatings }, index) => <StoreRow key={store.id} store={store} ratings={storeRatings} rank={index + 1} />)}{!topStores.length && <EmptyState text="Stores will appear here once they are added." />}</div></section><section className="panel insight-panel"><div className="insight-icon"><BarChart3 size={19} /></div><p className="eyebrow">A little insight</p><h2>{ratings.length ? 'Your community is paying attention.' : 'Your perspective starts here.'}</h2><p>{ratings.length ? `${ratings.length} ratings are helping people make more confident local choices.` : 'Browse the directory and leave the first rating that helps someone decide.'}</p><button className="primary-button" onClick={onBrowse}>Browse stores <ArrowRight size={16} /></button></section></div><div className="quote-strip"><div className="quote-mark">“</div><p>Good feedback is not just a score. It is a signal that helps a great place get better.</p><span>— The ratewell community</span></div></div>;
+}
+
+function OwnerOverview({ profile, stores, ratings, onRefresh, loading }: { profile: Profile; stores: StoreRecord[]; ratings: Rating[]; onRefresh: () => Promise<void>; loading: boolean }) {
+  const ownedIds = new Set(stores.map((store) => store.id));
+  const ownRatings = ratings.filter((rating) => ownedIds.has(rating.store_id));
+  const average = ownRatings.length ? ownRatings.reduce((sum, rating) => sum + rating.rating, 0) / ownRatings.length : 0;
+  return <div className="page">
+    <div className="page-heading"><div><p className="eyebrow">Store owner workspace</p><h1>Welcome, {profile.full_name.split(' ')[0]}</h1><p className="muted">Track the feedback customers leave for your stores.</p></div><button className="quiet-button" onClick={onRefresh} disabled={loading}>Refresh data</button></div>
+    <div className="stat-grid">
+      <StatCard icon={<Store size={19} />} label="Your stores" value={stores.length.toString()} detail="Stores assigned to your account" accent="green" />
+      <StatCard icon={<Star size={19} />} label="Ratings received" value={ownRatings.length.toString()} detail="Across your assigned stores" accent="amber" />
+      <StatCard icon={<TrendingUp size={19} />} label="Average rating" value={average ? average.toFixed(1) : '—'} detail="Out of 5.0 stars" accent="blue" />
+    </div>
+    <section className="panel feature-panel">
+      <div className="panel-header"><div><p className="eyebrow">Customer feedback</p><h2>Your store performance</h2></div><span className="muted">{ownRatings.length} ratings</span></div>
+      {!stores.length ? <EmptyState text="No stores are assigned to your account yet. Ask an administrator to assign a store owner." /> : <div className="top-store-list">
+        {stores.map((store) => {
+          const storeRatings = ratings.filter((rating) => rating.store_id === store.id);
+          return <div className="store-row" key={store.id}>
+            <div className="store-row-main"><div className="store-icon"><Store size={18} /></div><div><strong>{store.name}</strong><span><MapPin size={13} /> {store.address}</span></div></div>
+            <div className="store-row-score"><strong>{averageFor(storeRatings).toFixed(1)} <Star size={14} fill="currentColor" /></strong><span>{storeRatings.length} {storeRatings.length === 1 ? 'rating' : 'ratings'}</span></div>
+          </div>;
+        })}
+      </div>}
+    </section>
+    <section className="panel feature-panel">
+      <div className="panel-header"><div><p className="eyebrow">Latest activity</p><h2>Ratings for your stores</h2></div></div>
+      {!ownRatings.length ? <EmptyState text="Customer ratings will appear here when shoppers review your stores." /> : <div className="top-store-list">
+        {[...ownRatings].sort((a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime()).slice(0, 10).map((rating) => {
+          const store = stores.find((item) => item.id === rating.store_id);
+          return <div className="store-row" key={rating.id}><div className="store-row-main"><div className="store-icon"><Star size={18} /></div><div><strong>{store?.name || 'Your store'}</strong><span>Updated {new Date(rating.updated_at).toLocaleDateString()}</span></div></div><div className="store-row-score"><strong>{rating.rating}.0 <Star size={14} fill="currentColor" /></strong><span>out of 5</span></div></div>;
+        })}
+      </div>}
+    </section>
+  </div>;
 }
 
 function StoreDirectory({ profile, stores, ratings, onRefresh, onError }: { profile: Profile; stores: StoreRecord[]; ratings: Rating[]; onRefresh: () => Promise<void>; onError: (message: string) => void }) {
