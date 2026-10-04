@@ -23,7 +23,7 @@ import { supabase } from '@/lib/supabase';
 type Role = 'admin' | 'user' | 'owner';
 type Profile = { id: string; full_name: string; email: string; address: string; role: Role };
 type StoreRecord = { id: string; name: string; address: string; owner_id: string | null };
-type Rating = { id: string; store_id: string; user_id: string; rating: number; updated_at: string };
+type Rating = { id: string; store_id: string; user_id: string; rating: number; updated_at: string; reviewer?: { full_name: string; email: string } | null };
 type AuthMode = 'sign-in' | 'sign-up';
 type View = 'overview' | 'stores' | 'users' | 'account';
 
@@ -69,7 +69,7 @@ function App() {
       const [profileResult, storesResult, ratingsResult] = await Promise.all([
         supabase.from('profiles').select('id, full_name, email, address, role').eq('id', session.user.id).maybeSingle(),
         supabase.from('stores').select('id, name, address, owner_id').order('name'),
-        supabase.from('ratings').select('id, store_id, user_id, rating, updated_at'),
+        supabase.from('ratings').select('id, store_id, user_id, rating, updated_at, reviewer:profiles!ratings_user_id_fkey(full_name, email)'),
       ]);
       if (!active) return;
       if (profileResult.error || storesResult.error || ratingsResult.error) {
@@ -218,7 +218,7 @@ function OwnerOverview({ profile, stores, ratings, onRefresh, loading }: { profi
       {!ownRatings.length ? <EmptyState text="Customer ratings will appear here when shoppers review your stores." /> : <div className="top-store-list">
         {[...ownRatings].sort((a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime()).slice(0, 10).map((rating) => {
           const store = stores.find((item) => item.id === rating.store_id);
-          return <div className="store-row" key={rating.id}><div className="store-row-main"><div className="store-icon"><Star size={18} /></div><div><strong>{store?.name || 'Your store'}</strong><span>Updated {new Date(rating.updated_at).toLocaleDateString()}</span></div></div><div className="store-row-score"><strong>{rating.rating}.0 <Star size={14} fill="currentColor" /></strong><span>out of 5</span></div></div>;
+          return <div className="store-row" key={rating.id}><div className="store-row-main"><div className="store-icon"><Star size={18} /></div><div><strong>{rating.reviewer?.full_name || 'Customer'} · {store?.name || 'Your store'}</strong><span>{rating.reviewer?.email || 'Customer review'} · Updated {new Date(rating.updated_at).toLocaleDateString()}</span></div></div><div className="store-row-score"><strong>{rating.rating}.0 <Star size={14} fill="currentColor" /></strong><span>out of 5</span></div></div>;
         })}
       </div>}
     </section>
