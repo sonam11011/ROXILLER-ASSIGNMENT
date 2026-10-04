@@ -65,7 +65,7 @@ function App() {
         setAdminStats(await api<{ users: number; stores: number; ratings: number }>('/dashboard'));
       } else if (me.profile.role === 'owner') {
         const owner = await api<{ stores: StoreRecord[]; ratings: Rating[]; average_rating: number | null }>('/owner/dashboard');
-        setStores(owner.stores.map(s => ({ ...s, rating: null, rating_count: 0, user_rating: null, user_rating_id: null })));
+        setStores(owner.stores.map(s => ({ ...s, user_rating: null, user_rating_id: null })));
         setRatings(owner.ratings);
       }
     } catch (e) { setError(e instanceof Error ? e.message : 'We could not load your workspace.'); }
@@ -82,7 +82,7 @@ function App() {
       if (profile?.role === 'admin') setAdminStats(await api('/dashboard'));
       if (profile?.role === 'owner') {
         const owner = await api<{ stores: StoreRecord[]; ratings: Rating[] }>('/owner/dashboard');
-        setStores(owner.stores.map(s => ({ ...s, rating: null, rating_count: 0, user_rating: null, user_rating_id: null })));
+        setStores(owner.stores.map(s => ({ ...s, user_rating: null, user_rating_id: null })));
         setRatings(owner.ratings);
       }
     } catch (e) { setError(e instanceof Error ? e.message : 'We could not refresh the latest information.'); }
@@ -174,10 +174,11 @@ function RatingModal({store,onClose,onSaved,onError}:{store:StoreRecord;onClose:
 }
 
 function AddStore({onAdded,onError}:{onAdded:()=>Promise<void>;onError:(m:string)=>void}) {
-  const [open,setOpen]=useState(false); const [name,setName]=useState(''); const [address,setAddress]=useState(''); const [busy,setBusy]=useState(false);
-  const submit=async(e:FormEvent)=>{e.preventDefault();setBusy(true);try{await api('/stores',{method:'POST',body:JSON.stringify({name,address})});setName('');setAddress('');setOpen(false);await onAdded();}catch(err){onError(err instanceof Error?err.message:'We could not add that store.');}finally{setBusy(false);}};
+  const [open,setOpen]=useState(false); const [name,setName]=useState(''); const [address,setAddress]=useState(''); const [ownerId,setOwnerId]=useState(''); const [owners,setOwners]=useState<Profile[]>([]); const [busy,setBusy]=useState(false);
+  useEffect(()=>{if(open) void api<{users:Profile[]}>('/users?role=owner&sort=full_name&order=asc').then(x=>setOwners(x.users)).catch(()=>setOwners([]));},[open]);
+  const submit=async(e:FormEvent)=>{e.preventDefault();setBusy(true);try{await api('/stores',{method:'POST',body:JSON.stringify({name,address,ownerId:ownerId||null})});setName('');setAddress('');setOwnerId('');setOpen(false);await onAdded();}catch(err){onError(err instanceof Error?err.message:'We could not add that store.');}finally{setBusy(false);}};
   if(!open)return <button className="primary-button" onClick={()=>setOpen(true)}><Building2 size={16}/> Add store</button>;
-  return <form className="inline-add" onSubmit={submit}><input required minLength={2} maxLength={60} value={name} onChange={e=>setName(e.target.value)} placeholder="Store name"/><input required maxLength={400} value={address} onChange={e=>setAddress(e.target.value)} placeholder="Address"/><button className="primary-button" disabled={busy}>{busy?'Adding…':'Add'}</button><button type="button" className="icon-button" onClick={()=>setOpen(false)}><X size={17}/></button></form>;
+  return <form className="inline-add" onSubmit={submit}><input required minLength={2} maxLength={60} value={name} onChange={e=>setName(e.target.value)} placeholder="Store name"/><input required maxLength={400} value={address} onChange={e=>setAddress(e.target.value)} placeholder="Address"/><select value={ownerId} onChange={e=>setOwnerId(e.target.value)}><option value="">No owner assigned</option>{owners.map(o=><option key={o.id} value={o.id}>{o.full_name}</option>)}</select><button className="primary-button" disabled={busy}>{busy?'Adding…':'Add'}</button><button type="button" className="icon-button" onClick={()=>setOpen(false)}><X size={17}/></button></form>;
 }
 
 function PeopleView({onError}:{onError:(m:string)=>void}) {
